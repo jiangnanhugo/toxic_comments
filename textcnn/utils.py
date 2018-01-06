@@ -10,7 +10,7 @@ from nltk.stem import PorterStemmer
 import h5py
 import codecs
 
-base_dir = './input/'
+base_dir = '../input/'
 train_data_file = base_dir + 'train.csv'
 test_data_file = base_dir + 'test.csv'
 
@@ -62,8 +62,8 @@ def load_embedding(embedding_file, vocab_file):
     lookup_table = []
     num = 0
     for w in word2index:
+    	num+=1
         if w in embedding_index:
-            num += 1
             lookup_table.append(embedding_index[w])
         else:
             lookup_table.append(embedding_index['unk'])
@@ -163,7 +163,6 @@ def load_test_data(test_file, vocab_file, maxlen=150):
     word2index, _ = pickle.load(open(vocab_file, 'r'))
     # print(word2index)
     texts = []
-    print(len(data))
     for line in data:
         #print('-' * 40)
         #print(line)
@@ -181,7 +180,7 @@ def load_test_data(test_file, vocab_file, maxlen=150):
             else:
                 word_ids[idx] = word2index['unk']
         texts.append(word_ids)
-    print(len(texts))
+
     return np.asarray(texts)
 
 

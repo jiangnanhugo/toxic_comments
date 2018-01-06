@@ -266,7 +266,7 @@ for word, i in word_index.items():
         embedding_matrix[i] = embedding_vector
 
 print('Null word embeddings: %d' % np.sum(np.sum(embedding_matrix, axis=1) == 0))
-
+#print('ALL word embeddings: {}' % embedding_matrix.shape)
 
 ########################################
 ## sample train/validation data
@@ -303,14 +303,13 @@ x = Dropout(rate_drop_dense)(x)
 merged = Attention(MAX_SEQUENCE_LENGTH)(x)
 merged = Dense(num_dense, activation=act)(merged)
 merged = Dropout(rate_drop_dense)(merged)
-merged = BatchNormalization()(merged)
+#merged = BatchNormalization()(merged)
 preds = Dense(6, activation='sigmoid')(merged)
 
 ########################################
 ## train the model
 ########################################
-model = Model(inputs=[comment_input], \
-        outputs=preds)
+model = Model(inputs=[comment_input], outputs=preds)
 model.compile(loss='binary_crossentropy',optimizer='rmsprop', metrics=['accuracy'])
 print(model.summary())
 

@@ -2,13 +2,14 @@ import tensorflow as tf
 import numpy as np
 
 
-def TextCNN(object):
+class TextCNN(object):
     """
     A CNN for text classification.
     Uses an embedding layer, followed by a convolutional, max-pooling and softmax layer.
     """
 
-    def __init__(self, sequence_length, num_classes, vocab_size, embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0):
+    def __init__(self, sequence_length, num_classes, vocab_size, embedding_size, filter_sizes, num_filters,
+                 l2_reg_lambda=0.0):
         # placeholders for input,output and dropout
         self.input_x = tf.placeholder(
             tf.int32, [None, sequence_length], name='input_x')
@@ -21,12 +22,14 @@ def TextCNN(object):
         l2_loss = tf.constant(0.0)
 
         with tf.device("/cpu:0"), tf.name_scope('embedding'):
-            self.W = tf.Variable(tf.random_uniform(
-                [vocab_size, embedding_size], -1., 1.), name="W")
-            self.embedding_chars = tf.nn.embedding_lookup(self.W, self.input_x)
-            self.embedding_chars_expanded = tf.expand_dims(
+            W = tf.Variable(tf.constant(0., shape=[vocab_size, embedding_size]), name="W")  # ,trainable=False)
+            self.embedding_placeholder = tf.placeholder(tf.float32, [vocab_size, embedding_size],
+                                                        name='embedding_placeholder')
+            embeding_init = W.assign(self.embedding_placeholder)
+            self.embedded_chars = tf.nn.embedding_lookup(embeding_init, self.input_x)
+            self.embedded_chars_expanded = tf.expand_dims(
                 self.embedded_chars, -1)
-
+        print("embedding maping....")
         # Create a convolution + maxpool layer for each filter size
         pooled_outputs = []
         for i, filter_size in enumerate(filter_sizes):
@@ -43,16 +46,23 @@ def TextCNN(object):
                                     padding='VALID',
                                     name='conv')
                 h = tf.nn.relu(tf.nn.bias_add(conv, b), name='relu')
-                pooled = tf.nn.max_pool(
+                pooled = tf.nn.avg_pool(
                     h,
                     ksize=[1, sequence_length - filter_size + 1, 1, 1],
                     strides=[1, 1, 1, 1],
                     padding="VALID",
                     name='pool')
-                pooled_outputs.append(pooled)
+                pooled2 = tf.nn.max_pool(
+                    h,
+                    ksize=[1, sequence_length - filter_size + 1, 1, 1],
+                    strides=[1, 1, 1, 1],
+                    padding="VALID",
+                    name='pool2')
+                pooled_outputs.append(tf.concat([pooled, pooled2], axis=-1))
+                # pooled_outputs.append(pooled2)
 
         # Combine all the pooled features
-        num_filters_total = num_filters * len(filter_sizes)
+        num_filters_total = num_filters * 2 * len(filter_sizes)
         self.h_pool = tf.concat(pooled_outputs, 3)
         self.h_pool_flat = tf.reshape(self.h_pool, [-1, num_filters_total])
 
@@ -71,18 +81,19 @@ def TextCNN(object):
             l2_loss += tf.nn.l2_loss(W)
             l2_loss += tf.nn.l2_loss(b)
             self.scores = tf.nn.xw_plus_b(
-                self.h_drop, W, b, name_scope="scores")
-            self.predictions = tf.argmax(self.scores, 1, name='predictions')
+                self.h_drop, W, b, name="scores")
+            self.sigmoidprob = tf.sigmoid(self.scores, name='sigmoidprob')
+            self.predictions = self.sigmoidprob >= 0.5
 
         # Calculate mean cross-entropy loss
         with tf.name_scope('loss'):
-            losses = tf.nn.soft_cross_entropy_with_logits(
+            self.loss_per = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=self.scores, labels=self.input_y)
-            self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
+            self.loss = tf.reduce_mean(self.loss_per) + l2_reg_lambda * l2_loss
 
         # Accuracy
         with tf.name_scope('accuracy'):
-            correct_predictions = tf.equal(
-                self.predictions, tf.argmax(self.input_y, 1))
+            self.correct_predictions = tf.equal(
+                self.predictions, tf.cast(self.input_y, "bool"))
             self.accuracy = tf.reduce_mean(
-                tf.cast(correct_predictions, "float"), name="accuracy")
+                tf.cast(self.correct_predictions, "float"), name="accuracy")
