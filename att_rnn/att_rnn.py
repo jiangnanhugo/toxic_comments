@@ -34,11 +34,11 @@ class Attention_RNN(object):
 
         # Calculate mean cross-entropy loss
         with tf.name_scope('loss'):
-            #beta=0.795542572957783
-            #pos_weight=beta/(1-beta)
-            #self.loss_per=tf.nn.weighted_cross_entropy_with_logits(logits=self.scores,targets=self.input_y,pos_weight=pos_weight)
+            # beta=0.795542572957783
+            # pos_weight=beta/(1-beta)
+            # self.loss_per=tf.nn.weighted_cross_entropy_with_logits(logits=self.scores,targets=self.input_y,pos_weight=pos_weight)
             self.loss_per = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.scores, labels=self.input_y)
-            self.loss = tf.reduce_mean(self.loss_per)#*(1-beta))
+            self.loss = tf.reduce_mean(self.loss_per)  # *(1-beta))
 
         # Accuracy
         with tf.name_scope('accuracy'):

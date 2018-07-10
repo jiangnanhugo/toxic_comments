@@ -19,4 +19,4 @@ def read(filepath):
 
 	
 
-read('train.csv')
+read('data/train.csv')

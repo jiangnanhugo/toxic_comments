@@ -1,16 +1,17 @@
 import numpy as np
 import re
-import itertools
-from collections import Counter
-from collections import defaultdict, OrderedDict
+
+from collections import defaultdict
 import pandas as pd
 import pickle
+from sklearn.model_selection import StratifiedKFold
 
 from nltk.stem import PorterStemmer
-import h5py
+
+stemmer = PorterStemmer()
 import codecs
 
-base_dir = './input/'
+base_dir = './data/'
 train_data_file = base_dir + 'train.csv'
 test_data_file = base_dir + 'test.csv'
 
@@ -45,32 +46,53 @@ def sent_to_words(sent, remove_stopwords=True, stem_words=False):
     if remove_stopwords:
         sent = [w for w in sent if not w in stopwords]
     if stem_words:
-        stemmer = PorterStemmer()
         sent = [stemmer.stem(w) for w in sent]
     return sent
 
 
-def load_embedding(embedding_file, vocab_file):
+def crop_embedding(embedding_file, vocab_file):
+    fw=open(embedding_file+'.crp','w')
     embedding_index = {}
     word2index, _ = pickle.load(open(vocab_file, 'r'))
     f = open(embedding_file)
+    num=0
+    printed=False
+    visited=set()
     for line in f:
-        values = line.split()
+        values = line.strip().split()
         word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
-        embedding_index[word] = coefs
-    lookup_table = []
-    num = 0
+        #coefs = np.asarray(values[1:], dtype='float32')
+        if word in word2index:
+            fw.write(word+"\t"+" ".join(values[1:])+'\n')
+            num+=1
+            visited.add(word)
+  
     for w in word2index:
-        if w in embedding_index:
-            num += 1
-            lookup_table.append(embedding_index[w])
-        else:
-            lookup_table.append(embedding_index['unk'])
-
-    f.close()
+    	if w not in visited:
+            random_vector = np.random.rand(300,1).flatten()
+            if printed==False:
+                print(" ".join([str(w) for w in random_vector]))
+                printed=True
+            fw.write(word+"\t"+" ".join([str(w) for w in random_vector])+'\n')
+    fw.flush()
+    fw.close()
+    #     embedding_index[word] = coefs
+    # lookup_table = []
+    # num = 0
+    # for w in word2index:
+    #     if w in embedding_index:
+    #         num += 1
+    #         lookup_table.append(embedding_index[w])
+    #     else:
+    #         shape=embedding_index['unk'].shape
+    #         random_vector=np.random.rand(*shape)
+    #         print random_vector.shape
+    #         lookup_table.append(random_vector)
+    #
+    # f.close()
     print("Total {}/{} words vector.".format(num, len(word2index)))
-    return lookup_table
+
+    #return lookup_table
 
 
 def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocabulary_size=100000):
@@ -85,8 +107,7 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
 
     vocab = defaultdict(float)
     for line in comments:
-        for w in line:
-            vocab[w] += 1
+        for w in line: vocab[w] += 1
 
     print("len of all words {}".format(len(vocab)))
     word_to_count = sorted(vocab.items(), key=lambda t: t[1], reverse=True)
@@ -99,7 +120,7 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
         id2w[ix] = w[0]
         w2id[w[0]] = ix
 
-    with open(base_dir + 'vocabulary.pkl', 'w')as f:
+    with open(base_dir + 'vocabulary.pkl', 'wb')as f:
         pickle.dump((w2id, id2w), f)
 
     trainf = codecs.open(base_dir + "train.txt", mode='w', encoding='utf-8')
@@ -114,9 +135,6 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
         testf.write(" ".join(line) + '\n')
     testf.flush()
     testf.close()
-
-
-from sklearn.model_selection import StratifiedKFold
 
 
 def kflod(train_file):
@@ -153,7 +171,7 @@ def kflod(train_file):
 def clean_str(string):
     "tokenization/string for all dataset"
     string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
-    string = re.sub(r"\'s", "",string)
+    string = re.sub(r"\'s", "", string)
     return string.strip().lower()
 
 
@@ -165,18 +183,18 @@ def load_test_data(test_file, vocab_file, maxlen=150):
     texts = []
     print(len(data))
     for line in data:
-        #print('-' * 40)
-        #print(line)
+        # print('-' * 40)
+        # print(line)
         words = line.strip().split(' ')
-        #print(len(words))
-        #print('-' * 40)
+        # print(len(words))
+        # print('-' * 40)
         if len(words) == 0:
             break
         word_ids = np.zeros(maxlen, np.int32)
         for idx, w in enumerate(words):
             if idx >= maxlen: break
             if w in word2index:
-            	#print(w,word2index[w])
+                # print(w,word2index[w])
                 word_ids[idx] = word2index[w]
             else:
                 word_ids[idx] = word2index['unk']
@@ -230,5 +248,5 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
 
 if __name__ == '__main__':
     # kflod(base_dir+'train.txt')
-    read_csv(vocabulary_size=100000)
-    load_embedding(base_dir + 'glove.840B.300d.txt', base_dir + "vocabulary.pkl")
+    #read_csv(vocabulary_size=100000)
+    crop_embedding(base_dir + 'glove.840B.300d.txt', base_dir + "vocabulary.pkl")

@@ -4,23 +4,25 @@ import os
 import time
 from att_rnn import Attention_RNN
 from tensorflow.contrib import learn
-from utils import *
+from utils import load_embedding, load_data_and_labels, batch_iter, load_test_data, listed_classes
 import datetime
-import csv
+import codecs
+import pandas as pd
 import sys
 
 tf.flags.DEFINE_boolean("is_train", True, "use the train or test function")
 
 # Parameters
 tf.flags.DEFINE_float('dev_sample_percentage', .1, "percentage of the training data to use for validation")
-tf.flags.DEFINE_string('data_file', '../input/train.txt', "data source for the file")
+tf.flags.DEFINE_string('data_file', '../data/train.txt', "data source for the file")
+tf.flags.DEFINE_string('embd_file', '../data/glove.840B.300d.txt.crp', 'embedding file to load')
 
 # Model Hyperparameters
 tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of character embedding (default:128)")
-tf.flags.DEFINE_integer("sequence_length", 150, "maximum sequence length (default:200)")
-tf.flags.DEFINE_string('filter_sizes', '2,3,4,5,7,10,15,20', 'Comma-separated filter sizes (default: "3,4,5")')
+tf.flags.DEFINE_integer("sequence_length", 100, "maximum sequence length (default:200)")
+tf.flags.DEFINE_string('filter_sizes', '2,3,4,5,7', 'Comma-separated filter sizes (default: "3,4,5")')
 tf.flags.DEFINE_integer('num_filters', 10, 'Number of filters per filer size')
-tf.flags.DEFINE_float('dropout_keep_prob', 0.1, 'Dropout keep probability (default: 0.5)')
+tf.flags.DEFINE_float('dropout_keep_prob', 0.9, 'Dropout keep probability (default: 0.5)')
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 256, "Batch Size (default: 64)")
@@ -39,16 +41,15 @@ print('\nParameters:')
 for attr, value in sorted(FLAGS.__flags.items()):
     print('{}={}'.format(attr.upper(), value))
 print("")
-base_dir = '../input/'
+base_dir = '../data/'
 vocab_file = base_dir + "vocabulary.pkl"
-embedding_file = base_dir + 'glove.840B.300d.txt'
 
 VOCABULARY_SIZE = 100000 + 1
 
 
 def test():
     x_test = load_test_data(FLAGS.data_file, vocab_file)
-    embedding_matrix = load_embedding(embedding_file, vocab_file)
+    embedding_matrix = load_embedding(FLAGS.embd_file)
     print("Evaluating...")
     checkpoint_file = tf.train.latest_checkpoint(FLAGS.checkpoint_dir)
     graph = tf.Graph()
@@ -88,7 +89,7 @@ def test():
                 # print(batch_sigmoid_probs.shape)
                 # print(all_predictions.shape)
 
-    sample_submission = pd.read_csv("../input/sample_submission.csv")
+    sample_submission = pd.read_csv("../data/sample_submission.csv")
     sample_submission[listed_classes] = all_predictions
     STAMP = "RNN"
     sample_submission.to_csv(STAMP + '.csv', index=False)
@@ -101,7 +102,7 @@ def train():
     x, y = load_data_and_labels(FLAGS.data_file, vocab_file)
     print(x.shape, y.shape)
     print("loading embedding")
-    embedding_matrix = load_embedding(embedding_file, vocab_file)
+    embedding_matrix = load_embedding(FLAGS.embd_file)
 
     # Randomly shuffle data
     np.random.seed(100)
@@ -111,6 +112,8 @@ def train():
     dev_sample_index = -1 * int(FLAGS.dev_sample_percentage * float(len(y)))
     x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
     y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
+    print(x_train.shape, x_dev.shape)
+    print(y_train.shape, y_dev.shape)
     print('building models.....')
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
@@ -129,36 +132,10 @@ def train():
             grads_and_vars = optimizer.compute_gradients(model.loss)
             train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
-            # keep track of gradient values and sparsity (optional)
-            print('summaries....')
-            grad_summaries = []
-            for g, v in grads_and_vars:
-                if g is not None:
-                    grad_hist_summary = tf.summary.histogram("{}/grad/hist".format(v.name), g)
-                    sparsity_summary = tf.summary.scalar('{}/grad/sparsity'.format(v.name), tf.nn.zero_fraction(g))
-                    grad_summaries.append(grad_hist_summary)
-                    grad_summaries.append(sparsity_summary)
-
-            grad_summaries_merged = tf.summary.merge(grad_summaries)
-
             # Ouput directory for models and summaries
             timestamp = str(int(time.time()))
-            output_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
+            output_dir = os.path.abspath(os.path.join(os.path.curdir, timestamp))
             print("Writing to {}\n".format(output_dir))
-
-            # Summaries for loss and accuracy
-            loss_summary = tf.summary.scalar('loss', model.loss)
-            acc_summary = tf.summary.scalar('accuracy', model.accuracy)
-
-            # Train Summaries
-            train_summary_op = tf.summary.merge([loss_summary, acc_summary, grad_summaries_merged])
-            train_summary_dir = os.path.join(output_dir, "summaries", 'train')
-            train_summary_writer = tf.summary.FileWriter(train_summary_dir, sess.graph)
-
-            # Dev summaries
-            dev_summary_op = tf.summary.merge([loss_summary, acc_summary])
-            dev_summary_dir = os.path.join(output_dir, "summaries", 'dev')
-            dev_summary_writer = tf.summary.FileWriter(dev_summary_dir, sess.graph)
 
             # Checkpoint directory, Tensorflow assumes this diectory already exists so we need to create it
             checkpoint_dir = os.path.abspath(os.path.join(output_dir, "checkpoints"))
@@ -171,9 +148,7 @@ def train():
             sess.run(tf.global_variables_initializer())
 
             def train_step(x_batch, y_batch):
-                '''
-                A single training step
-                '''
+                # A single training step
                 feed_dict = {
                     model.input_x: x_batch,
                     model.input_y: y_batch,
@@ -181,17 +156,13 @@ def train():
                     model.embedding_placeholder: embedding_matrix
                 }
 
-                _, step, summaries, loss, accuracy = sess.run(
-                    [train_op, global_step, train_summary_op, model.loss, model.accuracy],
+                _, step, loss, accuracy = sess.run(
+                    [train_op, global_step, model.loss, model.accuracy],
                     feed_dict)
 
-                train_summary_writer.add_summary(summaries, step)
                 return step, loss, accuracy
 
-            def dev_step(x_batch, y_batch, writer=None):
-                """
-                Evaluate model on a dev set
-                """
+            def dev_step(x_batch, y_batch):
                 feed_dict = {
                     model.input_x: x_batch,
                     model.input_y: y_batch,
@@ -199,8 +170,8 @@ def train():
                     model.embedding_placeholder: embedding_matrix
                 }
 
-                step, summaries, loss, accuracy, sigmoidprob = sess.run(
-                    [global_step, dev_summary_op, model.loss, model.accuracy, model.sigmoidprob],
+                step, loss, accuracy, sigmoidprob = sess.run(
+                    [global_step, model.loss, model.accuracy, model.sigmoidprob],
                     feed_dict)
                 time_str = datetime.datetime.now().isoformat()
                 nums = 1
@@ -209,8 +180,6 @@ def train():
                     if nums == 0: break
                     print(l, p)
                 print(" Valid Loss {:g}, Valid Acc: {:g}".format(loss, accuracy))
-                if writer:
-                    writer.add_summary(summaries, step)
 
             # training loop, for each batch
             print("start running...")
@@ -222,18 +191,20 @@ def train():
                 for batch in batches:
                     x_batch, y_batch = zip(*batch)
                     step += 1
+                    if step >=100: break
                     _, loss, accuracy = train_step(x_batch, y_batch)
                     acum_loss += loss
                     acum_ac += accuracy
                     time_str = datetime.datetime.now().isoformat()
-                    print "\r {}: step {}, loss {:g}, acc {:g}".format(time_str, step, acum_loss / step, acum_ac / step),
+                    print("\r {}: step {}, loss {:g}, acc {:g}".format(time_str, step, acum_loss / step,
+                                                                       acum_ac / step), end='')
                     sys.stdout.flush()
                     # current_step = tf.train.global_step(sess, global_step)
-
+                print("\r {}, TrainLoss {:g}, TrainAcc {:g}".format(epoch, acum_loss / step, acum_ac / step), end="\t")
                 # print("\nEvaluation:")
-                dev_step(x_dev, y_dev, writer=dev_summary_writer)
+                dev_step(x_dev, y_dev)
                 path = saver.save(sess, checkpoint_prefix, global_step=epoch)
-                # print("saved model checkpoint to {}\n".format(path))
+                print("saving to {}".format(path))
 
 
 if __name__ == '__main__':

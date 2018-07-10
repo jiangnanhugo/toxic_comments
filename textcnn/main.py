@@ -4,7 +4,7 @@ import os
 import time
 from textcnn import TextCNN
 from tensorflow.contrib import learn
-from utils import *
+from builder import *
 import datetime
 import csv
 import sys

@@ -1,0 +1,9 @@
+C:\Users\jiang\Miniconda3\python.exe main.py^
+             --is_train True^
+             --batch_size 30^
+             --embd_file ../data/glove.840B.300d.txt.crp^
+             --embedding_dim 300^
+             --sequence_length 150^
+             --num_epochs 5
+rem glove.840B.300d.txt.crp
+rem ../data/fake_embd.txt^

@@ -1,0 +1,9 @@
+C:\Users\jiang\Miniconda3\python.exe main.py^
+             --is_train False^
+             --batch_size 300^
+             --data_file ../data/test.txt^
+             --checkpoint_dir 1531138316/checkpoints^
+             --embd_file ../data/fake_embd.txt^
+             --embedding_dim 40^
+             --sequence_length 150
+rem ../data/glove.840B.300d.txt.crp

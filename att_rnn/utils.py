@@ -1,13 +1,11 @@
 import numpy as np
 import re
-import itertools
-from collections import Counter
+
 from collections import defaultdict, OrderedDict
 import pandas as pd
 import pickle
 
 from nltk.stem import PorterStemmer
-import h5py
 import codecs
 
 base_dir = './input/'
@@ -50,27 +48,19 @@ def sent_to_words(sent, remove_stopwords=True, stem_words=False):
     return sent
 
 
-def load_embedding(embedding_file, vocab_file):
-    embedding_index = {}
-    word2index, _ = pickle.load(open(vocab_file, 'r'))
-    f = open(embedding_file)
+def load_embedding(embedding_file):
+    embed_mat=[]
+    f=codecs.open(embedding_file,mode='r',encoding='utf-8')
     for line in f:
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
-        embedding_index[word] = coefs
-    lookup_table = []
-    num = 0
-    for w in word2index:
-    	num+=1
-        if w in embedding_index:
-            lookup_table.append(embedding_index[w])
-        else:
-            lookup_table.append(embedding_index['unk'])
-
-    f.close()
-    print("Total {}/{} words vector.".format(num, len(word2index)))
-    return lookup_table
+        values = line.strip().split("\t")
+        if not len(values)==2:
+            print(values)
+            break
+        coefs = np.asarray(values[1].split(), dtype='float32')
+        embed_mat.append(coefs)
+    embed_mat=np.asarray(embed_mat, dtype=np.float32)
+    print('loading embedding matrix:', embed_mat.shape)
+    return embed_mat
 
 
 def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocabulary_size=100000):
@@ -115,39 +105,39 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
     testf.flush()
     testf.close()
 
-
-from sklearn.model_selection import StratifiedKFold
-
-
-def kflod(train_file):
-    data = open(train_file, 'r').read().split('\n')
-    texts = []
-    labels = []
-    for line in data:
-        splited = line.split(SEPRATE_TOKEN)
-        if len(splited) != 2:
-            print(splited)
-            break
-        texts.append(splited[0])
-        digits = splited[-1].split(' ')
-        labels.append([int(d) for d in digits])
-    print(len(texts), len(labels))
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=2018)
-    skf.get_n_splits(texts, labels)
-    print(skf)
-    idx = 0
-    for train_idx, valid_idx in skf.split(texts, labels):
-        fw = open(train_file + '.train.' + str(idx), 'w')
-        for idx in train_idx:
-            text, label = texts[idx], labels[idx]
-            fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
-        fw.close()
-        fw = open(train_file + ".valid." + str(idx), 'w')
-        for id in valid_idx:
-            text, label = texts[id], labels[id]
-            fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
-        fw.close()
-        idx += 1
+#
+# from sklearn.model_selection import StratifiedKFold
+#
+#
+# def kflod(train_file):
+#     data = open(train_file, 'r').read().split('\n')
+#     texts = []
+#     labels = []
+#     for line in data:
+#         splited = line.split(SEPRATE_TOKEN)
+#         if len(splited) != 2:
+#             print(splited)
+#             break
+#         texts.append(splited[0])
+#         digits = splited[-1].split(' ')
+#         labels.append([int(d) for d in digits])
+#     print(len(texts), len(labels))
+#     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=2018)
+#     skf.get_n_splits(texts, labels)
+#     print(skf)
+#     idx = 0
+#     for train_idx, valid_idx in skf.split(texts, labels):
+#         fw = open(train_file + '.train.' + str(idx), 'w')
+#         for idx in train_idx:
+#             text, label = texts[idx], labels[idx]
+#             fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
+#         fw.close()
+#         fw = open(train_file + ".valid." + str(idx), 'w')
+#         for id in valid_idx:
+#             text, label = texts[id], labels[id]
+#             fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
+#         fw.close()
+#         idx += 1
 
 
 def clean_str(string):
@@ -160,7 +150,7 @@ def clean_str(string):
 def load_test_data(test_file, vocab_file, maxlen=150):
     data = open(test_file, 'r').readlines()
     print("len of data {}".format(len(data)))
-    word2index, _ = pickle.load(open(vocab_file, 'r'))
+    word2index, _ = pickle.load(open(vocab_file, 'rb'))
     # print(word2index)
     texts = []
     for line in data:
@@ -186,7 +176,7 @@ def load_test_data(test_file, vocab_file, maxlen=150):
 
 def load_data_and_labels(train_file, vocab_file, maxlen=150):
     data = open(train_file, 'r').read().split('\n')
-    word2index, _ = pickle.load(open(vocab_file, 'r'))
+    word2index, _ = pickle.load(open(vocab_file, 'rb'))
     # print(word2index)
     texts = []
     labels = []
@@ -229,5 +219,5 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
 
 if __name__ == '__main__':
     # kflod(base_dir+'train.txt')
-    read_csv(vocabulary_size=100000)
+    #read_csv(vocabulary_size=100000)
     load_embedding(base_dir + 'glove.840B.300d.txt', base_dir + "vocabulary.pkl")
