@@ -60,6 +60,7 @@ def crop_embedding(embedding_file, vocab_file):
     visited=set()
     for line in f:
         values = line.strip().split()
+        if len(values)<=2: break
         word = values[0]
         #coefs = np.asarray(values[1:], dtype='float32')
         if word in word2index:
