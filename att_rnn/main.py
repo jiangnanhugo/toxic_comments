@@ -114,8 +114,8 @@ def train():
     # y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
     x_train=x_shuffled
     y_train=y_shuffled
-    print(x_train.shape, x_dev.shape)
-    print(y_train.shape, y_dev.shape)
+    print(x_train.shape)
+    print(y_train.shape)
     print('building models.....')
     with tf.Graph().as_default():
         session_conf = tf.ConfigProto(
