@@ -51,10 +51,10 @@ def sent_to_words(sent, remove_stopwords=True, stem_words=False):
 
 
 def crop_embedding(embedding_file, vocab_file):
-    fw=open(embedding_file+'.crp','w')
+    fw=codecs.open(embedding_file+'.crp','w',encoding='utf-8')
     embedding_index = {}
-    word2index, _ = pickle.load(open(vocab_file, 'r'))
-    f = open(embedding_file)
+    word2index, _ = pickle.load(codecs.open(vocab_file, 'rb',encoding='utf-8'))
+    f = codecs.open(embedding_file,encoding='utf-8')
     num=0
     printed=False
     visited=set()
