@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 import pandas as pd
 import pickle
-from sklearn.model_selection import StratifiedKFold
+
 
 from nltk.stem import PorterStemmer
 
@@ -137,35 +137,35 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
     testf.close()
 
 
-def kflod(train_file):
-    data = open(train_file, 'r').read().split('\n')
-    texts = []
-    labels = []
-    for line in data:
-        splited = line.split(SEPRATE_TOKEN)
-        if len(splited) != 2:
-            print(splited)
-            break
-        texts.append(splited[0])
-        digits = splited[-1].split(' ')
-        labels.append([int(d) for d in digits])
-    print(len(texts), len(labels))
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=2018)
-    skf.get_n_splits(texts, labels)
-    print(skf)
-    idx = 0
-    for train_idx, valid_idx in skf.split(texts, labels):
-        fw = open(train_file + '.train.' + str(idx), 'w')
-        for idx in train_idx:
-            text, label = texts[idx], labels[idx]
-            fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
-        fw.close()
-        fw = open(train_file + ".valid." + str(idx), 'w')
-        for id in valid_idx:
-            text, label = texts[id], labels[id]
-            fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
-        fw.close()
-        idx += 1
+# def kflod(train_file):
+#     data = open(train_file, 'r').read().split('\n')
+#     texts = []
+#     labels = []
+#     for line in data:
+#         splited = line.split(SEPRATE_TOKEN)
+#         if len(splited) != 2:
+#             print(splited)
+#             break
+#         texts.append(splited[0])
+#         digits = splited[-1].split(' ')
+#         labels.append([int(d) for d in digits])
+#     print(len(texts), len(labels))
+#     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=2018)
+#     skf.get_n_splits(texts, labels)
+#     print(skf)
+#     idx = 0
+#     for train_idx, valid_idx in skf.split(texts, labels):
+#         fw = open(train_file + '.train.' + str(idx), 'w')
+#         for idx in train_idx:
+#             text, label = texts[idx], labels[idx]
+#             fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
+#         fw.close()
+#         fw = open(train_file + ".valid." + str(idx), 'w')
+#         for id in valid_idx:
+#             text, label = texts[id], labels[id]
+#             fw.write(text + SEPRATE_TOKEN + " ".join(label) + '\n')
+#         fw.close()
+#         idx += 1
 
 
 def clean_str(string):
@@ -248,5 +248,5 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
 
 if __name__ == '__main__':
     # kflod(base_dir+'train.txt')
-    #read_csv(vocabulary_size=100000)
+    read_csv(vocabulary_size=100000)
     crop_embedding(base_dir + 'glove.840B.300d.txt', base_dir + "vocabulary.pkl")
