@@ -54,7 +54,7 @@ def crop_embedding(embedding_file, vocab_file):
     fw=codecs.open(embedding_file+'.crp','w',encoding='utf-8')
     embedding_index = {}
     word2index, _ = pickle.load(codecs.open(vocab_file, 'rb',encoding='utf-8'))
-    f = codecs.open(embedding_file,encoding='utf-8')
+    
     num=0
     printed=False
     visited=set()
@@ -121,7 +121,7 @@ def read_csv(train_filepath=train_data_file, test_filepath=test_data_file, vocab
         id2w[ix] = w[0]
         w2id[w[0]] = ix
 
-    with open(base_dir + 'vocabulary.pkl', 'wb')as f:
+    with codecs.open(base_dir + 'vocabulary.pkl', 'wb',encoding='utf-8')as f:
         pickle.dump((w2id, id2w), f)
 
     trainf = codecs.open(base_dir + "train.txt", mode='w', encoding='utf-8')
