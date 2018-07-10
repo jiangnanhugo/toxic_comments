@@ -110,8 +110,10 @@ def train():
     x_shuffled = x[shuffle_indices]
     y_shuffled = y[shuffle_indices]
     dev_sample_index = -1 * int(FLAGS.dev_sample_percentage * float(len(y)))
-    x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
-    y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
+    # x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
+    # y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
+    x_train=x_shuffled
+    y_train=y_shuffled
     print(x_train.shape, x_dev.shape)
     print(y_train.shape, y_dev.shape)
     print('building models.....')
@@ -191,7 +193,6 @@ def train():
                 for batch in batches:
                     x_batch, y_batch = zip(*batch)
                     step += 1
-                    if step >=100: break
                     _, loss, accuracy = train_step(x_batch, y_batch)
                     acum_loss += loss
                     acum_ac += accuracy
@@ -202,7 +203,7 @@ def train():
                     # current_step = tf.train.global_step(sess, global_step)
                 print("\r {}, TrainLoss {:g}, TrainAcc {:g}".format(epoch, acum_loss / step, acum_ac / step), end="\t")
                 # print("\nEvaluation:")
-                dev_step(x_dev, y_dev)
+                #dev_step(x_dev, y_dev)
                 path = saver.save(sess, checkpoint_prefix, global_step=epoch)
                 print("saving to {}".format(path))
 
